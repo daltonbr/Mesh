@@ -4,12 +4,14 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-public class Cube : MonoBehaviour
+public class RoundedCube : MonoBehaviour
 {
     [SerializeField] private Vector3Int size;
+    [SerializeField] private float roundness;
 
     private Mesh _mesh;
     private Vector3[] _vertices;
+    private Vector3[] _normals;
 
     private void Awake()
     {
@@ -38,6 +40,7 @@ public class Cube : MonoBehaviour
                             + (size.y - 1) * (size.z - 1)) * 2;
 
         _vertices = new Vector3[cornerVertices + edgeVertices + faceVertices];
+        _normals = new Vector3[_vertices.Length];
 
         int v = 0;
 
@@ -46,22 +49,22 @@ public class Cube : MonoBehaviour
         {
             for (int x = 0; x <= size.x; x++)
             {
-                _vertices[v++] = new Vector3(x, y, 0);
+                SetVertex(v++, x, y, 0);
             }
 
             for (int z = 1; z <= size.z; z++)
             {
-                _vertices[v++] = new Vector3(size.x, y, z);
+                SetVertex(v++, size.x, y, z);
             }
 
             for (int x = size.x - 1; x >= 0; x--)
             {
-                _vertices[v++] = new Vector3(x, y, size.z);
+                SetVertex(v++, x, y, size.z);
             }
 
             for (int z = size.z - 1; z > 0; z--)
             {
-                _vertices[v++] = new Vector3(0, y, z);
+                SetVertex(v++, 0, y, z);
             }
         }
 
@@ -70,7 +73,7 @@ public class Cube : MonoBehaviour
         {
             for (int x = 1; x < size.x; x++)
             {
-                _vertices[v++] = new Vector3(x, size.y, z);
+                SetVertex(v++, x, size.y, z);
             }
         }
 
@@ -79,38 +82,98 @@ public class Cube : MonoBehaviour
         {
             for (int x = 1; x < size.x; x++)
             {
-                _vertices[v++] = new Vector3(x, 0, z);
+                SetVertex(v++, x, 0, z);
             }
         }
 
         _mesh.vertices = _vertices;
+        _mesh.normals = _normals;
+
+    }
+
+    private void SetVertex(int index, int x, int y, int z)
+    {
+        Vector3 inner = _vertices[index] = new Vector3(x, y, z);
+
+        if (x < roundness)
+        {
+            inner.x = roundness;
+        }
+        else if (x > size.x - roundness)
+        {
+            inner.x = size.x - roundness;
+        }
+
+        if (y < roundness)
+        {
+            inner.y = roundness;
+        }
+        else if (y > size.y - roundness)
+        {
+            inner.y = size.y - roundness;
+        }
+
+        if (z < roundness)
+        {
+            inner.z = roundness;
+        }
+        else if (z > size.z - roundness)
+        {
+            inner.z = size.z - roundness;
+        }
+
+        _normals[index] = (_vertices[index] - inner).normalized;
+        _vertices[index] = inner + _normals[index] * roundness;
     }
 
     private void CreateTriangles()
     {
+        int[] trianglesZ = new int[(size.x * size.y) * 12];
+        int[] trianglesX = new int[(size.y * size.z) * 12];
+        int[] trianglesY = new int[(size.x * size.z) * 12];
         int quads = (size.x * size.y + size.x * size.z + size.y * size.z) * 2;
-        int[] triangles = new int[quads * 6];
+        //int[] triangles = new int[quads * 6];
 
         int ringSize = (size.x + size.z) * 2;
-        int t = 0, v = 0;
+        int tZ = 0, tX = 0, tY = 0, v = 0;
+        //int t = 0, v = 0;
 
         // Loop bottom-up, one ring at a time
         for (int y = 0; y < size.y; y++, v++)
         {
             // Ring
-            for (int q = 0; q < ringSize - 1; q++, v++)
+            for (int q = 0; q < size.x; q++, v++)
             {
-                t = SetQuad(triangles, t,
+                tZ = SetQuad(trianglesZ, tZ,
+                    v, v + 1, v + ringSize, v + ringSize + 1);
+            }
+            for (int q = 0; q < size.z; q++, v++)
+            {
+                tX = SetQuad(trianglesX, tX,
+                    v, v + 1, v + ringSize, v + ringSize + 1);
+            }
+            for (int q = 0; q < size.x; q++, v++)
+            {
+                tZ = SetQuad(trianglesZ, tZ,
+                    v, v + 1, v + ringSize, v + ringSize + 1);
+            }
+            for (int q = 0; q < size.z - 1; q++, v++)
+            {
+                tX = SetQuad(trianglesX, tX,
                     v, v + 1, v + ringSize, v + ringSize + 1);
             }
             // Close the ring loop (connect to the first triangle of the ring)
-            t = SetQuad(triangles, t,
+            tX = SetQuad(trianglesX, tX,
                 v, v - ringSize + 1, v + ringSize, v + 1);
         }
 
-        t = CreateTopFace(triangles, t, ringSize);
-        t = CreateBottomFace(triangles, t, ringSize);
-        _mesh.triangles = triangles;
+        tY = CreateTopFace(trianglesY, tY, ringSize);
+        tY = CreateBottomFace(trianglesY, tY, ringSize);
+
+        _mesh.subMeshCount = 3;
+        _mesh.SetTriangles(trianglesZ, 0);
+        _mesh.SetTriangles(trianglesX, 1);
+        _mesh.SetTriangles(trianglesY, 2);
     }
 
     private int CreateTopFace(int[] triangles, int t, int ringSize)
@@ -211,10 +274,12 @@ public class Cube : MonoBehaviour
     {
         if (_vertices == null) return;
 
-        Gizmos.color = Color.green;
-        foreach (var t in _vertices)
+        for (var index = 0; index < _vertices.Length; index++)
         {
-            Gizmos.DrawSphere(t, 0.1f);
+            Gizmos.color = Color.black;
+            Gizmos.DrawSphere(_vertices[index], 0.1f);
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawRay(_vertices[index], _normals[index]);
         }
     }
 }
