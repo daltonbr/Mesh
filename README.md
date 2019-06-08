@@ -15,3 +15,14 @@ Topics
 ![A Procedural Grid](Documentation/ProceduralGrid.PNG)
 
 Based on [](https://catlikecoding.com/unity/tutorials/procedural-grid/)
+
+## Rounded Cube
+
+Topics
+
+* Create a cube with a seamless mesh.
+* Add rounded edges to the cube.
+* Define normals.
+* Use sub-meshes.
+* Create a custom shader.
+* Combine primitive colliders.
