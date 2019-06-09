@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class RoundedCube : MonoBehaviour
@@ -12,6 +13,7 @@ public class RoundedCube : MonoBehaviour
     private Mesh _mesh;
     private Vector3[] _vertices;
     private Vector3[] _normals;
+    private Color32[] _cubeUV;
 
     private void Awake()
     {
@@ -26,8 +28,50 @@ public class RoundedCube : MonoBehaviour
 
         CreateVertices();
         CreateTriangles();
+        CreateColliders();
 
         Debug.Log($"[ProceduralCube] vertices: {_vertices.Length.ToString()}");
+    }
+
+    private void CreateColliders()
+    {
+        AddBoxCollider(size.x, size.y - roundness * 2, size.z - roundness * 2);
+        AddBoxCollider(size.x - roundness * 2, size.y, size.z - roundness * 2);
+        AddBoxCollider(size.x - roundness * 2, size.y - roundness * 2, size.z);
+
+        Vector3 min = Vector3.one * roundness;
+        Vector3 half = new Vector3(size.x, size.y, size.z) * 0.5f;
+        Vector3 max = new Vector3(size.x, size.y, size.z) - min;
+
+        AddCapsuleCollider(0, half.x, min.y, min.z);
+        AddCapsuleCollider(0, half.x, min.y, max.z);
+        AddCapsuleCollider(0, half.x, max.y, min.z);
+        AddCapsuleCollider(0, half.x, max.y, max.z);
+
+        AddCapsuleCollider(1, min.x, half.y, min.z);
+        AddCapsuleCollider(1, min.x, half.y, max.z);
+        AddCapsuleCollider(1, max.x, half.y, min.z);
+        AddCapsuleCollider(1, max.x, half.y, max.z);
+
+        AddCapsuleCollider(2, min.x, min.y, half.z);
+        AddCapsuleCollider(2, min.x, max.y, half.z);
+        AddCapsuleCollider(2, max.x, min.y, half.z);
+        AddCapsuleCollider(2, max.x, max.y, half.z);
+    }
+
+    private void AddBoxCollider(float x, float y, float z)
+    {
+        BoxCollider collider = gameObject.AddComponent<BoxCollider>();
+        collider.size = new Vector3(x, y, z);
+    }
+
+    private void AddCapsuleCollider(int direction, float x, float y, float z)
+    {
+        CapsuleCollider collider = gameObject.AddComponent<CapsuleCollider>();
+        collider.center = new Vector3(x, y, z);
+        collider.direction = direction;
+        collider.radius = roundness;
+        collider.height = collider.center[direction] * 2f;
     }
 
     private void CreateVertices()
@@ -41,6 +85,7 @@ public class RoundedCube : MonoBehaviour
 
         _vertices = new Vector3[cornerVertices + edgeVertices + faceVertices];
         _normals = new Vector3[_vertices.Length];
+        _cubeUV = new Color32[_vertices.Length];
 
         int v = 0;
 
@@ -88,6 +133,7 @@ public class RoundedCube : MonoBehaviour
 
         _mesh.vertices = _vertices;
         _mesh.normals = _normals;
+        _mesh.colors32 = _cubeUV;
 
     }
 
@@ -124,6 +170,7 @@ public class RoundedCube : MonoBehaviour
 
         _normals[index] = (_vertices[index] - inner).normalized;
         _vertices[index] = inner + _normals[index] * roundness;
+        _cubeUV[index] = new Color32((byte)x, (byte)y, (byte)z, 0);
     }
 
     private void CreateTriangles()
@@ -270,16 +317,16 @@ public class RoundedCube : MonoBehaviour
         return i + 6;
     }
 
-    private void OnDrawGizmos()
-    {
-        if (_vertices == null) return;
-
-        for (var index = 0; index < _vertices.Length; index++)
-        {
-            Gizmos.color = Color.black;
-            Gizmos.DrawSphere(_vertices[index], 0.1f);
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawRay(_vertices[index], _normals[index]);
-        }
-    }
+//    private void OnDrawGizmos()
+//    {
+//        if (_vertices == null) return;
+//
+//        for (var index = 0; index < _vertices.Length; index++)
+//        {
+//            Gizmos.color = Color.black;
+//            Gizmos.DrawSphere(_vertices[index], 0.1f);
+//            Gizmos.color = Color.yellow;
+//            Gizmos.DrawRay(_vertices[index], _normals[index]);
+//        }
+//    }
 }
