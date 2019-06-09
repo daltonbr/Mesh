@@ -1,6 +1,7 @@
 ﻿using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -14,22 +15,37 @@ public class RoundedCube : MonoBehaviour
     private Vector3[] _vertices;
     private Vector3[] _normals;
     private Color32[] _cubeUV;
-
+    private Transform _initialPosition;
+    private List<Collider> _colliders;
+    
     private void Awake()
     {
-        Generate();
+        //Generate();
     }
 
+    public void Generate(Vector3Int _size, float _roundness)
+    {
+        this.size = _size;
+        this.roundness = _roundness;
+        Generate();
+    }
+    
     WaitForSeconds wait = new WaitForSeconds(0.1f);
     private void Generate()
     {
+        _initialPosition = transform;
         GetComponent<MeshFilter>().mesh = _mesh = new Mesh();
         _mesh.name = "Procedural Cube";
 
         CreateVertices();
         CreateTriangles();
         CreateColliders();
-
+        this.transform.SetPositionAndRotation(_initialPosition.position, _initialPosition.rotation);
+        foreach (var col in _colliders)
+        {
+            col.enabled = true;
+        }
+        
         Debug.Log($"[ProceduralCube] vertices: {_vertices.Length.ToString()}");
     }
 
@@ -43,35 +59,40 @@ public class RoundedCube : MonoBehaviour
         Vector3 half = new Vector3(size.x, size.y, size.z) * 0.5f;
         Vector3 max = new Vector3(size.x, size.y, size.z) - min;
 
-        AddCapsuleCollider(0, half.x, min.y, min.z);
-        AddCapsuleCollider(0, half.x, min.y, max.z);
-        AddCapsuleCollider(0, half.x, max.y, min.z);
-        AddCapsuleCollider(0, half.x, max.y, max.z);
+        _colliders = new List<Collider>();
+        _colliders.Add(AddCapsuleCollider(0, half.x, min.y, min.z));
+        _colliders.Add(AddCapsuleCollider(0, half.x, min.y, max.z));
+        _colliders.Add(AddCapsuleCollider(0, half.x, max.y, min.z));
+        _colliders.Add(AddCapsuleCollider(0, half.x, max.y, max.z));
 
-        AddCapsuleCollider(1, min.x, half.y, min.z);
-        AddCapsuleCollider(1, min.x, half.y, max.z);
-        AddCapsuleCollider(1, max.x, half.y, min.z);
-        AddCapsuleCollider(1, max.x, half.y, max.z);
+        _colliders.Add(AddCapsuleCollider(1, min.x, half.y, min.z));
+        _colliders.Add(AddCapsuleCollider(1, min.x, half.y, max.z));
+        _colliders.Add(AddCapsuleCollider(1, max.x, half.y, min.z));
+        _colliders.Add(AddCapsuleCollider(1, max.x, half.y, max.z));
 
-        AddCapsuleCollider(2, min.x, min.y, half.z);
-        AddCapsuleCollider(2, min.x, max.y, half.z);
-        AddCapsuleCollider(2, max.x, min.y, half.z);
-        AddCapsuleCollider(2, max.x, max.y, half.z);
+        _colliders.Add(AddCapsuleCollider(2, min.x, min.y, half.z));
+        _colliders.Add(AddCapsuleCollider(2, min.x, max.y, half.z));
+        _colliders.Add(AddCapsuleCollider(2, max.x, min.y, half.z));
+        _colliders.Add(AddCapsuleCollider(2, max.x, max.y, half.z));
     }
 
-    private void AddBoxCollider(float x, float y, float z)
+    private Collider AddBoxCollider(float x, float y, float z)
     {
         BoxCollider collider = gameObject.AddComponent<BoxCollider>();
+        collider.enabled = false;
         collider.size = new Vector3(x, y, z);
+        return collider;
     }
 
-    private void AddCapsuleCollider(int direction, float x, float y, float z)
+    private Collider AddCapsuleCollider(int direction, float x, float y, float z)
     {
         CapsuleCollider collider = gameObject.AddComponent<CapsuleCollider>();
+        collider.enabled = false;
         collider.center = new Vector3(x, y, z);
         collider.direction = direction;
         collider.radius = roundness;
         collider.height = collider.center[direction] * 2f;
+        return collider;
     }
 
     private void CreateVertices()
